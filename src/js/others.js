@@ -40,17 +40,22 @@ export default {
     this.clearEnforceFocus();
     addListener(document, EVENT_FOCUSIN, (this.onFocusin = (event) => {
       const { viewer } = this;
-      const { target } = event;
+      let { target } = event;
 
-      if (target !== document
-        && target !== viewer
-        && !viewer.contains(target)
-
-        // Avoid conflicts with other modals (#474)
-        && (target.getAttribute('tabindex') === null || target.getAttribute('aria-modal') !== 'true')
-      ) {
-        viewer.focus();
+      if (target === document || target === viewer || viewer.contains(target)) {
+        return;
       }
+
+      while (target) {
+        // Avoid conflicts with other modals (#474, #540)
+        if ((target.getAttribute('tabindex') !== null || target.getAttribute('aria-modal') === 'true')) {
+          return;
+        }
+
+        target = target.parentElement;
+      }
+
+      viewer.focus();
     }));
   },
 
@@ -66,14 +71,19 @@ export default {
 
     addClass(body, CLASS_OPEN);
 
-    body.style.paddingRight = `${this.scrollbarWidth + (parseFloat(this.initialBodyComputedPaddingRight) || 0)}px`;
+    if (this.scrollbarWidth > 0) {
+      body.style.paddingRight = `${this.scrollbarWidth + (parseFloat(this.initialBodyComputedPaddingRight) || 0)}px`;
+    }
   },
 
   close() {
     const { body } = this;
 
     removeClass(body, CLASS_OPEN);
-    body.style.paddingRight = this.initialBodyPaddingRight;
+
+    if (this.scrollbarWidth > 0) {
+      body.style.paddingRight = this.initialBodyPaddingRight;
+    }
   },
 
   shown() {
@@ -210,7 +220,7 @@ export default {
 
       // Zoom the current image
       case ACTION_ZOOM:
-        this.zoom(getMaxZoomRatio(pointers), false, event);
+        this.zoom(getMaxZoomRatio(pointers), false, null, event);
         break;
 
       case ACTION_SWITCH: {
